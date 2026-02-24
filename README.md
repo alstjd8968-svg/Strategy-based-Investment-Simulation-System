@@ -1,73 +1,67 @@
-# Strategy-based Investment Simulation System
+📘 Quant Engine
 
-## 1. Introduction
-This project is a strategy-based investment simulation system designed to
-compare and analyze different trading strategies under identical market conditions.
+확장형 투자 의사결정 엔진 프로젝트
 
-Instead of focusing on real-time trading or profit maximization,
-the system emphasizes architectural design, strategy abstraction,
-and explainable decision-making with AI assistance.
+---
 
-## 2. Problem Statement
-Most individual automated trading programs focus on executing a single strategy
-and provide limited insight into why a strategy succeeds or fails.
+🎯 목표  
+단순 자동매매가 아니라,  
+전략 실행/리스크 평가/주문 생성/포트폴리오 업데이트 등  
+투자 의사결정을 모듈화 구조로 처리하는 코어 시스템 구축
 
-Additionally, AI-driven trading systems often operate as black boxes,
-making their decisions difficult to analyze or explain.
+장기 확장:  
+- 전략 실험 플랫폼  
+- 백테스트 프레임워크  
+- 리스크 분석 시스템  
+- API 투자 지원 플랫폼
 
-## 3. System Overview
-The system is composed of four main layers:
+---
 
-- Data Layer: Market prices, financial indicators, and news data
-- Strategy Layer: Multiple interchangeable trading strategies
-- Execution Layer: Simulation-based order execution
-- Analysis Layer: Performance reporting and strategy comparison
+🧠 설계 철학  
+1. Stateless Strategy  
+   └ 전략은 상태 미보관. 모든 상태는 Engine/Portfolio가 관리
 
-## 4. Strategy Design
-All trading strategies implement a common interface,
-allowing them to be executed and evaluated under the same conditions.
+2. Risk = Policy Layer  
+   └ 단순 점수 아닌 설명 가능한 리스크 리포트 제공
 
-Current strategy types include:
-- Quantitative rule-based strategies
-- AI-assisted recommendation strategies
-- User-defined strategies
-  
-## 5. AI-assisted Recommendation
-AI is used as a decision-support tool rather than an autonomous trader.
+3. Engine = Pipeline Orchestrator  
+   └ 단계별 Stage구조로 절차 흐름 관리, 확장 용이
 
-The AI module analyzes financial indicators and related news,
-providing recommendation scores and textual explanations.
-Final trading decisions are made by explicit strategy rules.
+---
 
-## 6. User-defined Strategy
-The system allows users to define their own trading strategies
-by composing predefined conditions and parameters
-without modifying the core trading engine.
+🏗 구조  
+- engine/  
+- order/  
+- portfolio/  
+- risk/  
+- strategy/  
+(모듈별 책임 분리, 도메인 중심 의존성)
 
-## 7. Simulation Flow
-1. Load historical market data for a specific date
-2. Generate account snapshot
-3. Execute strategies for each symbol
-4. Apply simulated order execution
-5. Evaluate daily assets
-6. Generate performance reports
-   
-## 8. Results & Evaluation
-Strategies are evaluated based on:
-- Total return
-- Drawdown
-- Trade frequency
-- Consistency across simulation runs
+---
 
-## 9. Future Work
-- Web-based visualization dashboard
-- Mobile monitoring application
-- Integration with broker APIs using an execution abstraction layer
+🚀 개발 단계  
+Phase 0) 엔진 코어  
+ - Stateless 전략 구조  
+ - RiskScore 구현  
+ - 시뮬레이션 루프/Order-Portfolio  
+ - 콘솔 기반 실행
 
-## 10. Tech Stack
-- Java (Core simulation engine)
-- Python (AI analysis and data processing)
-- GitHub Issues (project management)
-- Cursor / AI-assisted development
+Phase 1) 안정화  
+ - 테스트 코드  
+ - Risk Rule 구조화  
+ - 리팩토링
 
+Phase 2) API  
+ - Spring Boot/REST API
 
+Phase 3) UI  
+ - 웹기반 시각화
+
+Phase 4) AI  
+ - 전략 분석, 리스크 가중치 학습
+
+---
+
+🧩 장기 목표  
+4년 내  
+투자 의사결정 지원 시스템 설계·구현 역량 확보
