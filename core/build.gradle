@@ -1,0 +1,28 @@
+/*
+ * This file configures the 'core' module for the quant project.
+ * The module targets Java 17.
+ */
+
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Define core module dependencies below
+
+    // Example: implementation 'org.apache.commons:commons-lang3:3.12.0'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

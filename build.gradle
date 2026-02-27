@@ -1,0 +1,27 @@
+group = 'com.quant'
+version = '1.0-SNAPSHOT'
+
+subprojects {
+
+    apply plugin: 'java'
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+}
+
+// === 모듈(프로젝트)별 간략한 설명 ===
+// core           ← 도메인 + 엔진
+// backtest       ← 시뮬레이션 실행기
+// api            ← 외부 인터페이스
+// infrastructure ← DB, 파일, 외부연결
+// ai             ← 전략 확장
+// app            ← 임시 실행용 (나중에 제거 가능)
