@@ -1,0 +1,138 @@
+# Phase 0: Multi-Asset DailySimulation Engine
+
+Phase 0 목표: 멀티 자산(multi-asset)을 대상으로 하는 기본 투자 시뮬레이션 흐름을 완성한다.
+현재 도메인 클래스들은 스켈레톤 상태이며, `Engine`이 각 도메인 간 흐름을 조율하는 구조가 이미 잡혀있다.
+
+**핵심 변경**: 현재 단일 자산(`PortfolioDecision` 1개) 기준의 흐름을 **멀티 자산**(`List<PortfolioDecision>`)으로 확장하고, 각 클래스에 동작 가능한 구현체를 채운다.
+
+**설계 원칙**:
+- **Strategy는 Stateless** — 내부 상태 없이 순수 함수 형태. 이전 스냅샷은 Engine이 전달.
+- **Allocation은 Engine 레벨에서 비중 배분** — 개별 종목이 아닌 전체 BUY decision의 confidence 합 기준으로 proportional 배분하여 cash 초과 방지.
+
+## 현재 흐름 (Engine.process)
+
+```
+MarketSnapshot → Strategy.decide() → PortfolioDecision
+  → RiskPolicy.evaluate() → RiskScore
+  → AllocationService.allocate() → quantity
+  → OrderFactory.from() → Order
+  → Portfolio.apply(order)
+```
+
+## Proposed Changes
+
+아래 순서대로 구현한다 (의존성 순).
+
+---
+
+### 1. Market Domain
+
+#### [MODIFY] [MarketSnapshot.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/market/MarketSnapshot.java)
+- `LocalDate date` 필드 추가
+- `Map<String, Double> prices` (ticker → 가격) 필드 추가
+- 생성자, `getPrice(ticker)`, `getTickers()`, `getDate()` 메서드
+
+#### [MODIFY] [MarketDataProvider.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/market/MarketDataProvider.java)
+- 인터페이스로 변경: `List<MarketSnapshot> getSnapshots()` 역할 정의
+- Phase 0에서는 `DailySimulation`이 `List<MarketSnapshot>`을 직접 받으므로, 인터페이스 선언만
+
+---
+
+### 2. Strategy Domain
+
+#### [NEW] [Signal.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/strategy/Signal.java)
+- `BUY, SELL, HOLD` enum
+
+#### [MODIFY] [PortfolioDecision.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/strategy/PortfolioDecision.java)
+- 생성자 + getter 추가 (`ticker`, `signal`, `confidence`)
+
+#### [MODIFY] [Startegy.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/strategy/Startegy.java)
+- 반환 타입을 `List<PortfolioDecision>`으로 변경 (멀티 자산)
+- 시그니처를 `decide(MarketSnapshot current, MarketSnapshot previous)`로 확장 (Strategy Stateless 원칙)
+- `previous`는 nullable (첫 번째 날에는 null)
+
+#### [MODIFY] [SimpleMomentumStrategy.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/strategy/SimpleMomentumStrategy.java)
+- `Startegy` 구현 — **내부 상태 없이 순수 함수**
+- Phase 0 단순 로직: `previous`가 null이면 HOLD, 아니면 전일 대비 가격 상승 BUY / 하락 SELL
+- 모든 시계열 의존성은 Engine이 주입하므로 병렬 실행·테스트 격리 문제 없음
+
+---
+
+### 3. Risk Domain
+
+#### [MODIFY] [RiskScore.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/risk/RiskScore.java)
+- 생성자 추가 (현재 필드만 있고 생성자 없음)
+- `ALLOWED` / `DENIED` 팩토리 메서드 추가
+
+#### [MODIFY] [RiskPolicy.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/risk/RiskPolicy.java)
+- 시그니처 유지 (이미 인터페이스)
+
+#### [MODIFY] [BasicRiskPolicy.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/risk/BasicRiskPolicy.java)
+- `RiskPolicy` 구현
+- Phase 0 단순 로직: 항상 허용 (score = 1.0)
+
+---
+
+### 4. Order Domain
+
+#### [MODIFY] [Order.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/order/Order.java)
+- 생성자 + getter 추가
+- 오타 수정: `qunatity` → `quantity`
+
+#### [MODIFY] [OrderFactory.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/order/OrderFactory.java)
+- `static Order from(PortfolioDecision, double quantity, MarketSnapshot)` 구현
+- Signal → OrderType 매핑, HOLD이면 null 반환
+
+---
+
+### 5. Portfolio Domain
+
+#### [MODIFY] [Position.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/portfolio/Position.java)
+- `String ticker`, `double quantity`, `double avgPrice` 필드
+- 생성자 + getter + `addQuantity()`, `reduceQuantity()` 메서드
+
+#### [MODIFY] [Portfolio.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/portfolio/Portfolio.java)
+- 생성자 (initialCash)
+- `apply(Order)` 구현: BUY → cash 차감 + position 추가/업데이트, SELL → cash 증가 + position 감소
+- `totalValue(MarketSnapshot)` 구현: cash + Σ(position.quantity × snapshot.price)
+
+---
+
+### 6. Engine Domain
+
+#### [MODIFY] [AllocationService.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/engine/AllocationService.java)
+- 시그니처 변경: `Map<String, Double> allocate(List<PortfolioDecision> buyDecisions, RiskScore riskScore, Portfolio portfolio)`
+- **비중 배분 로직**: `allocation(i) = (confidence_i / totalConfidence) * cash * riskScore`
+- 개별 종목이 아닌 BUY decision 전체를 받아 한 번에 분배 → cash 초과 방지
+
+#### [MODIFY] [Engine.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/engine/Engine.java)
+- 생성자 추가
+- `process()` 멀티 자산 대응 흐름:
+  1. `strategy.decide(current, previous)` → `List<PortfolioDecision>` (Stateless)
+  2. HOLD 필터링 → BUY/SELL 분리
+  3. SELL 먼저 처리 (cash 확보)
+  4. BUY decisions를 `AllocationService`에 일괄 전달 → 비중 배분된 `Map<ticker, amount>` 수령
+  5. 각 배분 결과로 Order 생성 → Portfolio 적용
+- Engine이 `previousSnapshot`을 내부 필드로 관리하여 Strategy에 전달
+
+#### [MODIFY] [DailySimulation.java](file:///c:/Users/alstj/OneDrive/바탕%20화면/민성/Dev/Strategy-based%20Investment%20Simulation%20System/core/src/main/java/quantengine/domain/engine/DailySimulation.java)
+- 시뮬레이션 결과 로깅: 매일 날짜, 포트폴리오 총 가치 출력
+- 최종 결과 요약 출력
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+`core/src/test/java/quantengine/domain/engine/DailySimulationTest.java` 작성:
+
+1. 테스트 데이터를 직접 만든 `MarketSnapshot` 리스트 (3일치, 2종목)로 구성
+2. `SimpleMomentumStrategy` + `BasicRiskPolicy` + `AllocationService` + `Portfolio`를 조합하여 `Engine` 생성
+3. `DailySimulation.run()` 실행
+4. 최종 Portfolio 상태 검증 (cash + positions)
+
+```bash
+cd "c:\Users\alstj\OneDrive\바탕 화면\민성\Dev\Strategy-based Investment Simulation System"
+.\gradlew :core:test
+```
